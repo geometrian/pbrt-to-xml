@@ -4,6 +4,8 @@ class TransformBase(object):
 	def write(self, file, line_prefix):
 		for line in self.string.split("\n"):
 			file.write(line_prefix+line+"\n")
+	def __hash__(self):
+		return hash(self.transform)
 	def __eq__(self, other):
 		return self.transform == self.transform
 	def __ne__(self, other):
@@ -18,7 +20,7 @@ class LookAt(TransformBase):
 	ux="%g" uy="%g" uz="%g"
 />"""% (x,y,z, cx,cy,cz, ux,uy,uz)
 		)
-		self.transform = [ x,y,z, cx,cy,cz, ux,uy,uz ]
+		self.transform = ( x,y,z, cx,cy,cz, ux,uy,uz )
 	def is_iden(self):
 		return False #TODO: better
 class Rotate(TransformBase):
@@ -27,7 +29,7 @@ class Rotate(TransformBase):
 			self,
 			"<rotate degrees=\"%g\" rx=\"%g\" ry=\"%g\" rz=\"%g\"/>"%(degrees,x,y,z)
 		)
-		self.transform = [ degrees, x,y,z ]
+		self.transform = ( degrees, x,y,z )
 	def is_iden(self):
 		return self.transform[0] % 360.0 == 0.0
 class Scale(TransformBase):
@@ -36,9 +38,9 @@ class Scale(TransformBase):
 			self,
 			"<scale sx=\"%g\" sy=\"%g\" sz=\"%g\"/>"%(sx,sy,sz)
 		)
-		self.transform = [ sx,sy,sz ]
+		self.transform = ( sx,sy,sz )
 	def is_iden(self):
-		return self.transform == [ 1,1,1 ]
+		return self.transform == ( 1,1,1 )
 class Transform(TransformBase):
 	def __init__(self, transform):
 		s = "<transform"
@@ -51,18 +53,18 @@ class Transform(TransformBase):
 				j += 1
 		s += "/>"
 		TransformBase.__init__(self,s)
-		self.transform = list(transform)
+		self.transform = tuple(transform)
 	def is_iden(self):
-		return self.transform == [ 1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1 ]
+		return self.transform == ( 1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1 )
 class Translate(TransformBase):
 	def __init__(self, tx,ty,tz):
 		TransformBase.__init__(
 			self,
 			"<translate tx=\"%g\" ty=\"%g\" tz=\"%g\"/>"%(tx,ty,tz)
 		)
-		self.transform = [ tx,ty,tz ]
+		self.transform = ( tx,ty,tz )
 	def is_iden(self):
-		return self.transform == [ 0,0,0 ]
+		return self.transform == ( 0,0,0 )
 
 class CTM(object):
 	def __init__(self):
@@ -71,14 +73,15 @@ class CTM(object):
 	def clear(self):
 		self._stack = []
 
-	def erase_prefix(self, other):
-		self._stack = self._stack[len(other._stack):]
-
 	def get_copy(self):
 		result = CTM()
 		result._stack = list(self._stack)
 		return result
 
+	def erase_prefix(self, other):
+		self._stack = self._stack[len(other._stack):]
+	def pop_first(self):
+		self._stack = self._stack[1:]
 	def kill_iden(self):
 		if self._stack[-1].is_iden():
 			self._stack.pop()
@@ -96,7 +99,6 @@ class CTM(object):
 		self._stack.append(Scale(*transform))
 		self.kill_iden()
 	def replace(self, transform):
-		assert len(self._stack)==0 #Not implemented
 		self._stack = [ Transform(transform) ]
 		self.kill_iden()
 	def apply_translate(self, transform):

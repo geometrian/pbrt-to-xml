@@ -4,85 +4,44 @@ import ctm
 num_meshes = 0
 
 class ObjectBase(object):
-	def __init__(self, string):
+	def __init__(self, state, string):
+		self.state = state.get_copy()
 		self.string = string
 	def write(self, file, line_prefix):
 		for line in self.string.split("\n"):
 			file.write(line_prefix+line+"\n")
 class Sphere(ObjectBase):
-	def __init__(self, radius):
-		self.radius = radius
-		ObjectBase.__init__(
-			self,
-"""<object type=\"sphere\">
-	<radius value=\"%g\"/>
-	<interface name="<unknown>"/>
-</object>""" % radius
-		)
-class PlyMesh(ObjectBase):
-	def __init__(self, path):
-		global num_meshes
-		name = "<obj-%d>"%num_meshes; num_meshes+=1
+	def __init__(self, state, radius):
+		global num_meshes; name="<obj-%d>"%num_meshes; num_meshes+=1
 		interface = "<unknown>"
 		ObjectBase.__init__(
-			self,
+			self, state,
+"""<object type=\"sphere\" name="%s">
+	<radius value=\"%g\"/>
+	<interface name="%s"/>
+</object>""" % (name,radius,interface)
+		)
+		self.radius = radius
+class PlyMesh(ObjectBase):
+	def __init__(self, state, path):
+		global num_meshes; name="<obj-%d>"%num_meshes; num_meshes+=1
+		interface = "<unknown>"
+		ObjectBase.__init__(
+			self, state,
 """<object type="trimesh" name="%s" path="%s">
 	<interface name="%s"/>
 </object>""" % (name,path,interface)
 		)
 class Recurse(ObjectBase):
-	def __init__(self, name):
+	def __init__(self, state, name):
 		ObjectBase.__init__(
-			self,
+			self, state,
 """<recurse name=\"%s\"/>""" % name
 		)
 
 class Node(object):
-	def __init__(self, parent):
-		self.name = ""
-
-		self.parent = parent
-
-		self._children = []
-
-		self._objects = []
-
-		self._transform = None
-
-	def is_empty(self):
-		if len(self._children)>0: return False
-		if len(self._objects )>0: return False
-		return True
-
-	def add_child(self, child, ctm):
-		if self.is_empty():
-			self._transform = ctm.get_copy()
-			self._children.append(child)
-		elif self._transform != ctm:
-			tmp = Node(self)
-			tmp.add_child(child,ctm)
-			self._children.append(tmp)
-		else:
-			self._children.append(child)
-	def add_object(self, object, ctm):
-		if self.is_empty():
-			self._transform = ctm.get_copy()
-			self._objects.append(object)
-		elif self._transform != ctm:
-			tmp = Node(self)
-			tmp.add_object(object,ctm)
-			self._children.append(tmp)
-		else:
-			self._objects.append(object)
-	def add_recurse(self, name, ctm):
-		self.add_object(Recurse(name),ctm)
-
 	def write(self, file, line_prefix):
 		if not self.is_empty():
-			if self.name == "":
-				file.write(line_prefix+"<node>\n")
-			else:
-				file.write(line_prefix+"<node-defer name=\""+self.name+"\" disable=\"true\">\n")
 
 			transform_lcl = self._transform.get_copy()
 			if self.parent != None:
@@ -94,11 +53,6 @@ class Node(object):
 			for child in self._children:
 				child.write(file,line_prefix+"	")
 
-			if self.name == "":
-				file.write(line_prefix+"</node>\n")
-			else:
-				file.write(line_prefix+"</node-defer>\n")
-
 class Scene(object):
 	def __init__(self, state):
 		self.sample_count = 16
@@ -106,35 +60,20 @@ class Scene(object):
 		self.camera_transform = None
 		self.fov_deg = None
 
-		self.node_root = Node(None)
-		self.node_current = self.node_root
+		self.objects = []
 
 		self.state = state
-		self.stack = []
 
-	def start_node(self):
-		node = Node(self.node_current)
-		self.node_current.add_child(node,self.state.ctm)
-		self.node_current = node
-
-		self.stack.append(self.state.get_copy())
-	def set_node_name(self, name):
-		assert self.node_current.name == ""
-		self.node_current.name = name
-	def end_node(self):
-		self.state = self.stack[-1]
-		self.stack = self.stack[:-1]
-
-		self.node_current = self.node_current.parent
-
+	def _add_object(self, object):
+		self.objects.append(object)
 	def add_object_sphere(self, radius, zmin,zmax, phimax):
-		self.node_current.add_object(Sphere(radius),self.state.ctm)
+		self._add_object(Sphere(self.state,radius))
 	def add_object_trimesh(self, verts, indices):
 		pass
 	def add_object_plymesh(self, path):
-		self.node_current.add_object(PlyMesh(path),self.state.ctm)
+		self._add_object(PlyMesh(self.state,path))
 	def add_recurse(self, name):
-		self.node_current.add_recurse(name,self.state.ctm)
+		self._add_object(Recurse(self.state,name))
 
 	def apply_transform(self, transform):
 		self.state.ctm.apply_transform(transform)
@@ -149,6 +88,60 @@ class Scene(object):
 	def apply_translate(self, transform):
 		self.state.ctm.apply_translate(transform)
 
+	def _write_objects(self, file, line_prefix, objects,deferred_name=None):
+		if len(objects) > 0:
+			if deferred_name==None: file.write(line_prefix+"<node>\n")
+			else:                   file.write(line_prefix+"<node-defer name=\""+deferred_name+"\" disable=\"true\">\n")
+
+			while True:
+				#See if we have any objects with no remaining transforms on them (i.e., they're
+				#	happy in the currently transformed node)
+
+				found_empty = False
+				for object in objects:
+					if len(object.state.ctm._stack) == 0:
+						found_empty = True
+						break
+
+				if found_empty:
+					#If we do, then write them out, add the remaining objects recursively, and
+					#	we're done.
+
+					objects_remaining = []
+					for object in objects:
+						if len(object.state.ctm._stack) == 0:
+							object.write(file,line_prefix+"	")
+						else:
+							objects_remaining.append(object)
+					self._write_objects(file, line_prefix+"	", objects_remaining)
+					break
+				else:
+					#If we don't, then every object has at least one more transform.  Figure out
+					#	how many different initial transforms there are.
+
+					first_transforms = {}
+					for object in objects:
+						key = object.state.ctm._stack[0]
+						if key not in first_transforms:
+							first_transforms[key] = []
+						first_transforms[key].append(object)
+					assert len(first_transforms) > 0
+
+					if len(first_transforms) == 1:
+						#	If there's only one unique initial transform all objects share, apply
+						#		it to the node and loop back around to check all the objects again.
+						objects[0].state.ctm._stack[0].write(file, line_prefix+"	");
+						for object in objects:
+							object.state.ctm.pop_first()
+					else:
+						#	Otherwise, group the objects by their initial transforms and write each
+						#		group separately and recursively, and we're done.
+						for obj_list in first_transforms.values():
+							self._write_objects(file, line_prefix+"	", obj_list)
+						break
+
+			if deferred_name==None: file.write(line_prefix+"</node>\n")
+			else:                   file.write(line_prefix+"</node-defer>\n")
 	def write_xml(self, file, dir,path_in,path_out):
 		#XML file beginning
 		file.write(
@@ -163,10 +156,29 @@ class Scene(object):
 		)
 
 		#Nodes
-		self.node_root.write(file,"		")
+		#	Separate the normal and the deferred objects
+		normal_objects = []
+		deferred_objects = {}
+		for object in self.objects:
+			if object.state.deferred_name != None:
+				if object.state.deferred_name not in deferred_objects:
+					deferred_objects[object.state.deferred_name] = []
+				deferred_objects[object.state.deferred_name].append(object)
+			else:
+				normal_objects.append(object)
+		#	Write the deferred objects
+		if len(deferred_objects) > 0:
+			file.write("\n		<!-- Deferred Objects -->\n")
+			for name in deferred_objects:
+				self._write_objects(file,"		",deferred_objects[name],name)
+		#	Write the normal objects
+		file.write("\n		<!-- Main Scene -->\n")
+		self._write_objects(file,"		",normal_objects)
 
 		file.write(
-"""		<node>
+"""
+		<!-- Lights -->
+		<node>
 			<object type="point" name="pointLight">
 				<interface name="mtl-point-lgt"/>
 				<position x="0" y="0" z="22"/>
@@ -176,7 +188,12 @@ class Scene(object):
 		)
 
 		#Camera
-		file.write("		<node>\n")
+		file.write(
+"""
+		<!-- Camera -->
+		<node>
+"""
+		)
 		self.camera_transform.write(file,"			")
 		file.write(
 """			<camera>
@@ -205,7 +222,9 @@ class Scene(object):
 
 		#Materials
 		file.write(
-"""		<interface-stack name="mtl-point-lgt">
+"""
+		<!-- Materials -->
+		<interface-stack name="mtl-point-lgt">
 			<edf type="lambert"><spectrum value="500.0"><cie-illuminant type="E"/></spectrum></edf>
 			<bsdf type="delta"/>
 		</interface-stack>
@@ -215,21 +234,29 @@ class Scene(object):
 				<btdf/>
 			</bsdf>
 		</interface-stack>
-""")
+"""
+		)
 
 		#Accel type
-		file.write("		<accel type=\"LBVH-2\"/>\n")
+		file.write(
+"""
+		<!-- Acceleration Structure -->
+		<accel type=\"LBVH-2\"/>
+"""
+		)
 
 		file.write("	</scene>\n")
 
 		#Integrator
 		file.write(
-"""	<integrator type="normals" absolute="true">
+"""
+	<!-- Integrator -->
+	<integrator type="normals" absolute="true">
 		<max-depth-eye value="6"/>
 		<color-miss r="1" g="0" b="1"/>
-		<sample-pixels type="centered" value="64"/>
+		<sample-pixels type="centered" value="%d"/>
 	</integrator>
-"""
+""" % self.sample_count
 		)
 
 		file.write("</xml>")

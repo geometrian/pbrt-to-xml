@@ -23,17 +23,17 @@ def parse_tokens(dir, tokenstream, scene):
 		elif token == "WorldEnd":
 			break
 		elif token == "AttributeBegin":
-			scene.start_node()
+			scene.state.push()
 		elif token == "AttributeEnd":
-			scene.end_node()
+			scene.state.pop()
 		elif token == "ObjectBegin":
 			name = tokenstream.pop_next()[1:-1]
-			scene.set_node_name(name)
+			scene.state.begin_defer(name)
 		elif token == "ObjectInstance":
 			name = tokenstream.pop_next()[1:-1]
 			scene.add_recurse(name)
 		elif token == "ObjectEnd":
-			pass
+			scene.state.end_defer()
 
 		elif token == "ConcatTransform":
 			transform = list(map(float, parse_helpers.parse_array(tokenstream) ))
@@ -132,7 +132,9 @@ def parse(dir, lines):
 
 def main():
 	#path_in = "C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/pbrt-book/book.pbrt"
-	path_in = "C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/landscape/view-0.pbrt"
+	path_in = "C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/vw-van/vw-van.pbrt"
+	#path_in = "C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/landscape/view-0.pbrt"
+
 	#path_out = "scene.xml"#"C:/Users/Ian Mallett/Desktop/scene.xml"
 	path_out = os.path.splitext(path_in)[0] + ".xml"
 
