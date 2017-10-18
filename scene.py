@@ -215,7 +215,7 @@ class Scene(object):
 """			<camera>
 				<aperture type="point"><position value="0"/></aperture>
 				<sensor>
-					<position fov-degrees="%g"/>
+					<position fov-degrees-x="%g"/>
 """ % self.fov_deg
 		)
 		file.write(
