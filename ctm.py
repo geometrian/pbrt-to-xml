@@ -43,9 +43,17 @@ class Scale(TransformBase):
 		return self.transform == ( 1,1,1 )
 class Transform(TransformBase):
 	def __init__(self, transform):
+		#Transpose input
+		transform2 = [ None ]*16
+		for j in range(4):
+			for i in range(4):
+				i_src = i*4 + j
+				i_dst = j*4 + i
+				transform2[i_dst] = transform[i_src]
+
 		s = "<transform"
 		i=0; j=0
-		for val in transform:
+		for val in transform2:
 			s += " m%d%d=\"%g\"" % (j,i,val)
 			i += 1
 			if i == 4:
@@ -53,7 +61,7 @@ class Transform(TransformBase):
 				j += 1
 		s += "/>"
 		TransformBase.__init__(self,s)
-		self.transform = tuple(transform)
+		self.transform = tuple(transform2)
 	def is_iden(self):
 		return self.transform == ( 1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1 )
 class Translate(TransformBase):
