@@ -1,4 +1,5 @@
 import ctm
+import state as state_module
 
 
 num_meshes = 0
@@ -171,6 +172,10 @@ class Scene(object):
 			file.write("\n		<!-- Deferred Objects -->\n")
 			for name in deferred_objects:
 				self._write_objects(file,"		",deferred_objects[name],name)
+			#		Yes; the empty recursion points too, as they may be referenced.
+			for name in state_module.deferred_names:
+				if name not in deferred_objects:
+					file.write("\n		<node-defer name=\""+name+"\" disable=\"true\"/>")
 		#	Write the normal objects
 		file.write("\n		<!-- Main Scene -->\n")
 		self._write_objects(file,"		",normal_objects)
