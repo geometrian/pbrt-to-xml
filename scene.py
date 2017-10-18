@@ -39,6 +39,7 @@ class Recurse(ObjectBase):
 			self, state,
 """<recurse name=\"%s\"/>""" % name
 		)
+		self.recurse_name = name
 
 class Node(object):
 	def write(self, file, line_prefix):
@@ -108,10 +109,20 @@ class Scene(object):
 					#If we do, then write them out, add the remaining objects recursively, and
 					#	we're done.
 
+					#		Need to make sure we don't recurse twice to the same object, because
+					#			that'd be pointless and wasteful (some PBRT files do this,
+					#			presumably erroneously).
+					recursed_to = set()
+
 					objects_remaining = []
 					for object in objects:
 						if len(object.state.ctm._stack) == 0:
-							object.write(file,line_prefix+"	")
+							if (hasattr(object,"recurse_name")):
+								if object.recurse_name not in recursed_to:
+									object.write(file,line_prefix+"	")
+									recursed_to.add(object.recurse_name)
+							else:
+								object.write(file,line_prefix+"	")
 						else:
 							objects_remaining.append(object)
 					self._write_objects(file, line_prefix+"	", objects_remaining)
