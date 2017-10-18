@@ -57,7 +57,7 @@ class Node(object):
 
 class Scene(object):
 	def __init__(self, state):
-		self.sample_count = 16
+		self.sample_count = 1 #PBRT default `16`
 
 		self.camera_transform = None
 		self.fov_deg = None
