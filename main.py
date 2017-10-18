@@ -138,8 +138,8 @@ def main():
 	#path_out = "scene.xml"#"C:/Users/Ian Mallett/Desktop/scene.xml"
 	path_out = os.path.splitext(path_in)[0] + ".xml"
 
-	path_in  = os.path.abspath(path_in )
-	path_out = os.path.abspath(path_out)
+	path_in  = os.path.abspath(path_in ).replace("\\","/")
+	path_out = os.path.abspath(path_out).replace("\\","/")
 
 	print("Reading input file . . .")
 	t0 = time.time()
