@@ -59,14 +59,17 @@ def parse_tokens(dir, tokenstream, scene):
 
 		elif token == "Camera":
 			_,type_cam,params = parse_helpers.parse_varfunction(tokenstream, token, scene)
-			scene.fov_deg = float(params["float fov"][0])
+			fov_deg = params["float fov"]
+			if type(fov_deg)==type([]): fov_deg=fov_deg[0]
+			scene.fov_deg = float(fov_deg)
 			scene.camera_transform = scene.state.ctm.get_copy()
 		elif token == "Film":
 			_,_,params = parse_helpers.parse_varfunction(tokenstream, token, scene)
-			scene.res = (
-				int(params["integer xresolution"][0]),
-				int(params["integer yresolution"][0])
-			)
+			xres = params["integer xresolution"]
+			yres = params["integer yresolution"]
+			if type(xres)==type([]): xres=xres[0]
+			if type(yres)==type([]): yres=yres[0]
+			scene.res = ( int(xres), int(yres) )
 
 		elif token == "Shape":
 			_,type_shape,params =  parse_helpers.parse_varfunction(tokenstream, token, scene)
