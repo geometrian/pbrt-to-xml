@@ -58,6 +58,12 @@ def tokenize(lines):
 					if len(token) > 0:
 						tokens.append(token)
 						token = ""
+				elif c in ["[","]"]:
+					if len(token) > 0:
+						tokens.append(token)
+						token = ""
+					tokens.append(c)
+					mode = 0
 				else:
 					token += c
 			else:
