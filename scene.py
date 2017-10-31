@@ -96,24 +96,32 @@ class Scene(object):
 	def add_recurse(self, name):
 		self._add_object(Recurse(self.state,name))
 
-	def apply_transform(self, transform):
-		self.state.ctm.apply_transform(transform)
-	def apply_lookat(self, transform):
-		self.state.ctm.apply_lookat(transform)
-	def apply_rotate(self, transform):
-		self.state.ctm.apply_rotate(transform)
-	def apply_scale(self, transform):
-		self.state.ctm.apply_scale(transform)
-	def replace(self, transform):
-		self.state.ctm.replace(transform)
+	def replace_identity(self):
+		self.state.ctm.clear()
 	def apply_translate(self, transform):
 		self.state.ctm.apply_translate(transform)
+	def apply_scale(self, transform):
+		self.state.ctm.apply_scale(transform)
+	def apply_rotate(self, transform):
+		self.state.ctm.apply_rotate(transform)
+	def apply_lookat(self, transform):
+		self.state.ctm.apply_lookat(transform)
+	def replace_transform(self, transform):
+		self.state.ctm.replace(transform)
+	def apply_transform(self, transform):
+		self.state.ctm.apply_transform(transform)
 
 	def _write_objects(self, file, line_prefix, objects,deferred_name=None):
 		if len(objects) > 0:
 			if deferred_name==None: file.write(line_prefix+"<node>\n")
 			else:                   file.write(line_prefix+"<node-defer name=\""+deferred_name+"\" disable=\"false\">\n")
 
+			class Node:
+				def __init__(self):
+					self.objects = []
+					self.recursions = []
+					self.transforms = []
+			node = Node()
 			while True:
 				#See if we have any objects with no remaining transforms on them (i.e., they're
 				#	happy in the currently transformed node)
@@ -138,13 +146,13 @@ class Scene(object):
 						if len(object.state.ctm._stack) == 0:
 							if (hasattr(object,"recurse_name")):
 								if object.recurse_name not in recursed_to:
-									object.write(file,line_prefix+"	")
+									node.objects.append(object)
 									recursed_to.add(object.recurse_name)
 							else:
-								object.write(file,line_prefix+"	")
+								node.objects.append(object)
 						else:
 							objects_remaining.append(object)
-					self._write_objects(file, line_prefix+"	", objects_remaining)
+					node.recursions.append(objects_remaining)
 					break
 				else:
 					#If we don't, then every object has at least one more transform.  Figure out
@@ -161,15 +169,22 @@ class Scene(object):
 					if len(first_transforms) == 1:
 						#	If there's only one unique initial transform all objects share, apply
 						#		it to the node and loop back around to check all the objects again.
-						objects[0].state.ctm._stack[0].write(file, line_prefix+"	");
+						node.transforms.append( objects[0].state.ctm._stack[0] )
 						for object in objects:
 							object.state.ctm.pop_first()
 					else:
 						#	Otherwise, group the objects by their initial transforms and write each
 						#		group separately and recursively, and we're done.
 						for obj_list in first_transforms.values():
-							self._write_objects(file, line_prefix+"	", obj_list)
+							node.recursions.append(obj_list)
 						break
+			#Write node
+			for transform in reversed(node.transforms):
+				transform.write(file, line_prefix+"	");
+			for object in node.objects:
+				object.write(file,line_prefix+"	")
+			for recursion in node.recursions:
+				self._write_objects(file, line_prefix+"	", recursion)
 
 			if deferred_name==None: file.write(line_prefix+"</node>\n")
 			else:                   file.write(line_prefix+"</node-defer>\n")

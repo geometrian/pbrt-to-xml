@@ -47,27 +47,39 @@ def parse_tokens(dir, tokenstream, scene):
 		elif token == "ObjectEnd":
 			scene.state.end_defer()
 
-		elif token == "ConcatTransform":
-			transform = list(map(float, parse_helpers.parse_array(tokenstream) ))
-			scene.apply_transform(transform)
-		elif token == "LookAt":
-			transform = list(map(float, tokenstream.pop_next(9) ))
-			scene.apply_lookat(transform)
-		elif token == "ReverseOrientation":
-			#Flips orientation of one-sided primitives.  Ignored.
-			pass
-		elif token == "Rotate":
-			transform = list(map(float, tokenstream.pop_next(4) ))
-			scene.apply_rotate(transform)
-		elif token == "Scale":
-			transform = list(map(float, tokenstream.pop_next(3) ))
-			scene.apply_scale(transform)
-		elif token == "Transform":
-			transform = list(map(float, parse_helpers.parse_array(tokenstream) ))
-			scene.replace(transform)
+		elif token == "Identity":
+			scene.replace_identity()
 		elif token == "Translate":
 			transform = list(map(float, tokenstream.pop_next(3) ))
 			scene.apply_translate(transform)
+		elif token == "Scale":
+			transform = list(map(float, tokenstream.pop_next(3) ))
+			scene.apply_scale(transform)
+		elif token == "Rotate":
+			transform = list(map(float, tokenstream.pop_next(4) ))
+			scene.apply_rotate(transform)
+		elif token == "LookAt":
+			transform = list(map(float, tokenstream.pop_next(9) ))
+			scene.apply_lookat(transform)
+		elif token == "CoordinateSystem":
+			assert False
+		elif token == "CoordSysTransform":
+			assert False
+		elif token == "Transform":
+			transform = list(map(float, parse_helpers.parse_array(tokenstream) ))
+			scene.replace_transform(transform)
+		elif token == "ConcatTransform":
+			transform = list(map(float, parse_helpers.parse_array(tokenstream) ))
+			scene.apply_transform(transform)
+
+		elif token == "TransformBegin":
+			scene.state.push_transform()
+		elif token == "TransformEnd":
+			scene.state.pop_transform()
+
+		elif token == "ReverseOrientation":
+			#Flips orientation of one-sided primitives.  Ignored.
+			pass
 
 		elif token == "Camera":
 			_,type_cam,params = parse_helpers.parse_varfunction(tokenstream, token, scene)

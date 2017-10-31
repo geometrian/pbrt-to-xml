@@ -7,13 +7,19 @@ class State(object):
 	def __init__(self):
 		#"Current transform matrix"
 		self.ctm = ctm.CTM()
+
+		#Note: this is apparently not saved by attrib begin and end
 		self.deferred_name = None
 
 		self._stack = []
 
 	def push(self):
-		self._stack.append(self.ctm.get_copy())
+		self._stack.append( self.ctm.get_copy() )
+	def push_transform(self):
+		self._stack.append( self.ctm.get_copy() )
 	def pop(self):
+		self.ctm = self._stack.pop()
+	def pop_transform(self):
 		self.ctm = self._stack.pop()
 
 	def get_copy(self):
