@@ -217,7 +217,11 @@ class Scene(object):
 """			<camera>
 				<aperture type="point"><position value="0"/></aperture>
 				<sensor>
-					<position fov-degrees-x="%g"/>
+					<position fov-degrees-"""
+		)
+		if self.res[0] < self.res[1]: file.write("x")
+		else:                         file.write("y")
+		file.write("""="%g"/>
 """ % self.fov_deg
 		)
 		file.write(
