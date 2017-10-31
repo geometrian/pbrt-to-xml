@@ -3,6 +3,7 @@ import state as state_module
 
 
 num_meshes = 0
+num_rawtris = 0
 
 class ObjectBase(object):
 	def __init__(self, state, string):
@@ -37,9 +38,25 @@ class Recurse(ObjectBase):
 	def __init__(self, state, name):
 		ObjectBase.__init__(
 			self, state,
-"""<recurse name=\"%s\"/>""" % name
+"<recurse name=\"%s\"/>" % name
 		)
 		self.recurse_name = name
+class TriMesh(ObjectBase):
+	def __init__(self, state, verts,indices):
+		global num_rawtris
+		string = ""
+		for i in range(0,len(indices),3):
+			i0=indices[i  ]; v0=verts[i0]
+			i1=indices[i+1]; v1=verts[i1]
+			i2=indices[i+2]; v2=verts[i2]
+			args = (num_rawtris, v0[0],v0[1],v0[2], v1[0],v1[1],v1[2], v2[0],v2[1],v2[2], "<unknown>")
+			string +=\
+"<object type=\"triangle\" name=\"<raw-tri-%d>\" v0x=\"%g\" v0y=\"%g\" v0z=\"%g\" v1x=\"%g\" v1y=\"%g\" v1z=\"%g\" v2x=\"%g\" v2y=\"%g\" v2z=\"%g\"><interface name=\"%s\"/></object>" % args
+			if i+3<len(indices): string+="\n"
+			num_rawtris += 1
+		ObjectBase.__init__(
+			self, state, string
+		)
 
 class Node(object):
 	def write(self, file, line_prefix):
@@ -73,7 +90,7 @@ class Scene(object):
 	def add_object_sphere(self, radius, zmin,zmax, phimax):
 		self._add_object(Sphere(self.state,radius))
 	def add_object_trimesh(self, verts, indices):
-		pass
+		self._add_object(TriMesh(self.state, verts,indices))
 	def add_object_plymesh(self, path):
 		self._add_object(PlyMesh(self.state,path))
 	def add_recurse(self, name):

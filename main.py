@@ -9,6 +9,18 @@ import parse_helpers
 import tokenizer
 
 
+def scalarize(params, param_name):
+	param = params[param_name]
+
+	if type(param)==type([]): param=param[0]
+
+	if   param_name.startswith("float" ): param=float(param)
+	elif param_name.startswith("int"   ): param=  int(param)
+	elif param_name.startswith("string"): pass
+	else: assert False
+
+	return param
+
 def parse_tokens(dir, tokenstream, scene):
 	num_tokens = len(tokenstream)
 	print("  Parsing %d tokens . . ."%num_tokens)
@@ -59,19 +71,16 @@ def parse_tokens(dir, tokenstream, scene):
 
 		elif token == "Camera":
 			_,type_cam,params = parse_helpers.parse_varfunction(tokenstream, token, scene)
-			fov_deg = params["float fov"]
-			if type(fov_deg)==type([]): fov_deg=fov_deg[0]
-			scene.fov_deg = float(fov_deg)
+			fov_deg = scalarize(params,"float fov")
+			scene.fov_deg = fov_deg
 			scene.camera_transform = scene.state.ctm.get_copy()
 		elif token == "Film":
 			_,_,params = parse_helpers.parse_varfunction(tokenstream, token, scene)
-			xres = params["integer xresolution"]
-			yres = params["integer yresolution"]
-			if type(xres)==type([]): xres=xres[0]
-			if type(yres)==type([]): yres=yres[0]
-			scene.res = ( int(xres), int(yres) )
+			xres = scalarize(params,"integer xresolution")
+			yres = scalarize(params,"integer yresolution")
+			scene.res = ( xres, yres )
 			if "float scale" in params.keys():
-				sensitivity = float(params["float scale"])
+				sensitivity = scalarize(params,"float scale")
 				scene.sensitivity = sensitivity
 
 		elif token == "Shape":
@@ -84,23 +93,26 @@ def parse_tokens(dir, tokenstream, scene):
 			elif type_shape == "paraboloid":  assert False
 			elif type_shape == "sphere":
 				radius = 1
-				if "float radius" in params: radius=float(params["float radius"])
+				if "float radius" in params: radius=scalarize(params,"float radius")
 				zmin=-radius; zmax=radius
-				if "float zmin"   in params: zmin  =float(params["float zmin"  ])
-				if "float zmax"   in params: zmax  =float(params["float zmax"  ])
+				if "float zmin"   in params: zmin  =scalarize(params,"float zmin"  )
+				if "float zmax"   in params: zmax  =scalarize(params,"float zmax"  )
 				phimax = 360.0
-				if "float phimax" in params: phimax=float(params["float phimax"])
+				if "float phimax" in params: phimax=scalarize(params,"float phimax")
 				scene.add_object_sphere(radius, zmin,zmax, phimax)
-			elif type_shape == "trianglemesh":
+			elif type_shape in ["trianglemesh","loopsubdiv"]:
 				verts = []
 				for i in range(0,len(params["point P"]),3):
-					verts.append( params["point P"][i:i+3] )
-				indices = params["integer indices"]
+					vert = params["point P"][i:i+3]
+					verts.append([float(xyz) for xyz in vert])
+				indices = []
+				for i in range(len(params["integer indices"])):
+					indices.append(int( params["integer indices"][i] ))
 				#TODO: other attributes; esp. "normal N"!
 				scene.add_object_trimesh(verts,indices)
-			elif type_shape in ["heightfield","loopsubdiv","nurbs"]: pass
+			elif type_shape in ["heightfield","nurbs"]: pass
 			elif type_shape == "plymesh": #TODO: alpha stuff
-				scene.add_object_plymesh(params["string filename"][1:-1])
+				scene.add_object_plymesh(scalarize(params,"string filename")[1:-1])
 			else: assert False
 		elif token in [
 			"Sampler", "PixelFilter",
