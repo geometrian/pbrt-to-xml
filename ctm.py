@@ -74,6 +74,15 @@ class Transform(TransformBase):
 		self.transform = tuple(transform2)
 	def is_iden(self):
 		return self.transform == ( 1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1 )
+	def _fits(self, pattern):
+		for i in range(16):
+			if pattern[i]==None: continue
+			if self.transform[i]!=pattern[i]: return False
+		return True
+	def interpret(self):
+		if self._fits(( None,0,0,0, 0,None,0,0, 0,0,None,0, 0,0,0,1 )): return Scale( self.transform[0], self.transform[4+1], self.transform[4+4+2] )
+		if self._fits(( 1,0,0,None, 0,1,0,None, 0,0,1,None, 0,0,0,1 )): return Translate( self.transform[3], self.transform[4+3], self.transform[4+4+3] )
+		return self
 class Translate(TransformBase):
 	def __init__(self, tx,ty,tz):
 		TransformBase.__init__(
@@ -108,7 +117,8 @@ class CTM(object):
 		self._stack.append(transform_obj)
 		#self._stack = [transform_obj] + self._stack
 	def apply_transform(self, transform):
-		self._add_to_stack(Transform(transform))
+		transform = Transform(transform).interpret()
+		self._add_to_stack(transform)
 		self.kill_iden()
 	def apply_lookat(self, transform):
 		self._add_to_stack(LookAt(*transform))
@@ -120,7 +130,8 @@ class CTM(object):
 		self._add_to_stack(Scale(*transform))
 		self.kill_iden()
 	def replace(self, transform):
-		self._stack = [ Transform(transform) ]
+		transform = Transform(transform).interpret()
+		self._stack = [ transform ]
 		self.kill_iden()
 	def apply_translate(self, transform):
 		self._add_to_stack(Translate(*transform))
