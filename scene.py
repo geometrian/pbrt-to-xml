@@ -66,6 +66,8 @@ class Scene(object):
 
 		self.state = state
 
+		self.sensitivity = 1
+
 	def _add_object(self, object):
 		self.objects.append(object)
 	def add_object_sphere(self, radius, zmin,zmax, phimax):
@@ -225,7 +227,7 @@ class Scene(object):
 """ % self.res
 		)
 		file.write( #TODO: don't ignore reconstruction type
-"""					<sensitivity value="1"/>
+"""					<sensitivity value="%g"/>
 					<reconstruction type="mitchell-netravali"/>
 				</sensor>
 				<frames>
@@ -233,7 +235,7 @@ class Scene(object):
 				</frames>
 			</camera>
 		</node>
-"""
+""" % self.sensitivity
 		)
 
 		#Materials

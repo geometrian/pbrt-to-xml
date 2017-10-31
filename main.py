@@ -67,9 +67,11 @@ def parse_tokens(dir, tokenstream, scene):
 			_,_,params = parse_helpers.parse_varfunction(tokenstream, token, scene)
 			xres = params["integer xresolution"]
 			yres = params["integer yresolution"]
+			sensitivity = float(params["float scale"])
 			if type(xres)==type([]): xres=xres[0]
 			if type(yres)==type([]): yres=yres[0]
 			scene.res = ( int(xres), int(yres) )
+			scene.sensitivity = sensitivity
 
 		elif token == "Shape":
 			_,type_shape,params =  parse_helpers.parse_varfunction(tokenstream, token, scene)
