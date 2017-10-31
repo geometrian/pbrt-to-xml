@@ -84,17 +84,17 @@ def parse_tokens(dir, tokenstream, scene):
 			elif type_shape == "paraboloid":  assert False
 			elif type_shape == "sphere":
 				radius = 1
-				if "float radius" in params: radius=float(params["float radius"][0])
+				if "float radius" in params: radius=float(params["float radius"])
 				zmin=-radius; zmax=radius
-				if "float zmin"   in params: zmin  =float(params["float zmin"  ][0])
-				if "float zmax"   in params: zmax  =float(params["float zmax"  ][0])
+				if "float zmin"   in params: zmin  =float(params["float zmin"  ])
+				if "float zmax"   in params: zmax  =float(params["float zmax"  ])
 				phimax = 360.0
-				if "float phimax" in params: phimax=float(params["float phimax"][0])
+				if "float phimax" in params: phimax=float(params["float phimax"])
 				scene.add_object_sphere(radius, zmin,zmax, phimax)
 			elif type_shape == "trianglemesh":
 				verts = []
-				for i in range(0,len(params["P"]),3):
-					verts.append( params["P"][i:i+3] )
+				for i in range(0,len(params["point P"]),3):
+					verts.append( params["point P"][i:i+3] )
 				indices = params["integer indices"]
 				#TODO: other attributes; esp. "normal N"!
 				scene.add_object_trimesh(verts,indices)
