@@ -9,6 +9,9 @@ import parse_helpers
 import tokenizer
 
 
+def rndint(x):
+	return int(round(x))
+
 def scalarize(params, param_name):
 	param = params[param_name]
 
@@ -90,11 +93,21 @@ def parse_tokens(dir, tokenstream, scene):
 			_,_,params = parse_helpers.parse_varfunction(tokenstream, token, scene)
 			xres = scalarize(params,"integer xresolution")
 			yres = scalarize(params,"integer yresolution")
-			scene.res = ( xres, yres )
+			while xres>1920 or yres>1080:
+				xres *= 0.9
+				yres *= 0.9
+			scene.res = ( rndint(xres), rndint(yres) )
 			if "float scale" in params.keys():
 				sensitivity = scalarize(params,"float scale")
 				scene.sensitivity = sensitivity
-
+			if "float cropwindow" in params.keys():
+				x0,x1,omy0,omy1 = [float(x) for x in params["float cropwindow"]]
+				y0=1.0-omy1; y1=1.0-omy0
+				dx = rndint((x1 - x0)*xres)
+				dy = rndint((y1 - y0)*yres)
+				x0 = rndint(x0*xres)
+				y0 = rndint(y0*yres)
+				scene.rect = ( x0,y0, dx,dy )
 		elif token == "Shape":
 			_,type_shape,params =  parse_helpers.parse_varfunction(tokenstream, token, scene)
 			if   type_shape == "cone":        assert False

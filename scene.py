@@ -257,17 +257,17 @@ class Scene(object):
 		file.write("""="%g"/>
 """ % self.fov_deg
 		)
-		self.res = list(self.res)
-		while self.res[0]>1920 or self.res[1]>1080:
-			self.res[0] *= 0.9
-			self.res[1] *= 0.9
-		self.res = ( int(round(self.res[0])), int(round(self.res[1])) )
 		file.write(
 """					<size-y value="1"/>
 					<width value="%d"/>
 					<height value="%d"/>
 """ % self.res
 		)
+		if hasattr(self,"rect"):
+			file.write(
+"""					<rect x=\"%d\" y=\"%d\" w=\"%d\" h=\"%d\"/>
+""" % self.rect
+			)
 		file.write( #TODO: don't ignore reconstruction type
 """					<sensitivity value="%g"/>
 					<reconstruction type="mitchell-netravali"/>
