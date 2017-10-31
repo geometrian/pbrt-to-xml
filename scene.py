@@ -210,6 +210,7 @@ class Scene(object):
 """
 		<!-- Camera -->
 		<node>
+			<scale sx="-1" sy="1" sz="1"/>
 """
 		)
 		self.camera_transform.write(file,"			")
