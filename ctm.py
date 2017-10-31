@@ -1,3 +1,6 @@
+#import numpy as np
+
+
 class TransformBase(object):
 	def __init__(self, string):
 		self.string = string
@@ -51,15 +54,22 @@ class Transform(TransformBase):
 				i_dst = j*4 + i
 				transform2[i_dst] = transform[i_src]
 
-		s = "<transform"
+		matrix = [[None for i in range(4)] for j in range(4)]
 		i=0; j=0
 		for val in transform2:
-			s += " m%d%d=\"%g\"" % (j,i,val)
+			matrix[j][i] = val
 			i += 1
 			if i == 4:
 				i = 0
 				j += 1
+		#matrix = np.array(matrix)
+		#matrix = np.linalg.inv(matrix)
+		s = "<transform"
+		for j in range(4):
+			for i in range(4):
+				s += " m%d%d=\"%g\"" % (j,i,matrix[j][i])
 		s += "/>"
+
 		TransformBase.__init__(self,s)
 		self.transform = tuple(transform2)
 	def is_iden(self):
@@ -94,23 +104,26 @@ class CTM(object):
 		if self._stack[-1].is_iden():
 			self._stack.pop()
 
+	def _add_to_stack(self, transform_obj):
+		self._stack.append(transform_obj)
+		#self._stack = [transform_obj] + self._stack
 	def apply_transform(self, transform):
-		self._stack.append(Transform(transform))
+		self._add_to_stack(Transform(transform))
 		self.kill_iden()
 	def apply_lookat(self, transform):
-		self._stack.append(LookAt(*transform))
+		self._add_to_stack(LookAt(*transform))
 		self.kill_iden()
 	def apply_rotate(self, transform):
-		self._stack.append(Rotate(*transform))
+		self._add_to_stack(Rotate(*transform))
 		self.kill_iden()
 	def apply_scale(self, transform):
-		self._stack.append(Scale(*transform))
+		self._add_to_stack(Scale(*transform))
 		self.kill_iden()
 	def replace(self, transform):
 		self._stack = [ Transform(transform) ]
 		self.kill_iden()
 	def apply_translate(self, transform):
-		self._stack.append(Translate(*transform))
+		self._add_to_stack(Translate(*transform))
 		self.kill_iden()
 
 	def write(self, file, line_prefix):

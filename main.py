@@ -138,8 +138,11 @@ def parse(dir, lines):
 
 def main():
 	#path_in = "C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/pbrt-book/book.pbrt"
-	path_in = "C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/vw-van/vw-van.pbrt"
+	#path_in = "C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/crown/crown.pbrt"
+	#path_in = "C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/killeroos/killeroo-simple.pbrt"
+	#path_in = "C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/vw-van/vw-van.pbrt"
 	#path_in = "C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/landscape/view-0.pbrt"
+	path_in = "C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/white-room/whiteroom-daytime.pbrt"
 
 	#path_out = "scene.xml"#"C:/Users/Ian Mallett/Desktop/scene.xml"
 	path_out = os.path.splitext(path_in)[0] + ".xml"

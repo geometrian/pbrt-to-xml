@@ -95,7 +95,7 @@ class Scene(object):
 	def _write_objects(self, file, line_prefix, objects,deferred_name=None):
 		if len(objects) > 0:
 			if deferred_name==None: file.write(line_prefix+"<node>\n")
-			else:                   file.write(line_prefix+"<node-defer name=\""+deferred_name+"\" disable=\"true\">\n")
+			else:                   file.write(line_prefix+"<node-defer name=\""+deferred_name+"\" disable=\"false\">\n")
 
 			while True:
 				#See if we have any objects with no remaining transforms on them (i.e., they're
@@ -188,7 +188,7 @@ class Scene(object):
 			#		Yes; the empty recursion points too, as they may be referenced.
 			for name in state_module.deferred_names:
 				if name not in deferred_objects:
-					file.write("\n		<node-defer name=\""+name+"\" disable=\"true\"/>")
+					file.write("\n		<node-defer name=\""+name+"\" disable=\"false\"/>")
 		#	Write the normal objects
 		file.write("\n		<!-- Main Scene -->\n")
 		self._write_objects(file,"		",normal_objects)
@@ -225,6 +225,11 @@ class Scene(object):
 		file.write("""="%g"/>
 """ % self.fov_deg
 		)
+		self.res = list(self.res)
+		while self.res[0]>1920 or self.res[1]>1080:
+			self.res[0] *= 0.9
+			self.res[1] *= 0.9
+		self.res = ( int(round(self.res[0])), int(round(self.res[1])) )
 		file.write(
 """					<size-y value="1"/>
 					<width value="%d"/>
