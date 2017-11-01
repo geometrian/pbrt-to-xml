@@ -150,6 +150,7 @@ def parse_tokens(dir, tokenstream, scene):
 			file = open(os.path.join(dir,filename),"r")
 			lines = file.readlines()
 			file.close()
+			print("")
 			moretokens = tokenizer.tokenize(lines)
 			tokenstream.add_tokenstream_at_current(moretokens)
 			num_tokens += len(moretokens)
@@ -202,7 +203,7 @@ def convert(path_in):
 
 def main():
 	for path_in in [
-		#"C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/barcelona-pavilion/pavilion-day.pbrt",
+		"C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/barcelona-pavilion/pavilion-day.pbrt",
 		#"C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/caustic-glass/glass.pbrt",
 		#"C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/crown/crown.pbrt",
 		#"C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/ecosys/ecosys.pbrt",
@@ -215,7 +216,7 @@ def main():
 		#"C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/pbrt-book/book.pbrt",
 		#"C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/sanmiguel/sanmiguel.pbrt",
 		#"C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/villa/villa-daylight.pbrt",
-		"C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/vw-van/vw-van.pbrt",
+		#"C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/vw-van/vw-van.pbrt",
 		#"C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/white-room/whiteroom-daytime.pbrt",
 	]:
 		convert(path_in)

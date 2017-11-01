@@ -3,55 +3,53 @@ import state as state_module
 
 
 num_meshes = 0
-num_rawtris = 0
+def get_next_objname():
+	global num_meshes; name="<obj-%d>"%num_meshes; num_meshes+=1
+	return name
 
 class ObjectBase(object):
-	def __init__(self, state, string):
+	def __init__(self, name, state):
+		self.name = name
 		self.state = state.get_copy()
-		self.string = string
 	def write(self, file, line_prefix):
-		for line in self.string.split("\n"):
+		string = self.get_string()
+		for line in string.split("\n"):
 			file.write(line_prefix+line+"\n")
 class Sphere(ObjectBase):
-	def __init__(self, state, radius):
-		global num_meshes; name="<obj-%d>"%num_meshes; num_meshes+=1
-		interface = "<unknown>"
-		ObjectBase.__init__(
-			self, state,
-"""<object type=\"sphere\" name="%s"><radius value=\"%g\"/><interface name="%s"/></object>""" % (name,radius,interface)
-		)
+	def __init__(self, name, state, radius):
+		ObjectBase.__init__(self,name,state)
 		self.radius = radius
+	def get_copy(self):
+		return Sphere(self.name,self.state,self.radius)
+	def get_string(self):
+		return """<object type=\"sphere\" name="%s"><radius value=\"%g\"/><interface name="%s"/></object>""" % (self.name,self.radius,"<unknown>")
+class Triangle(ObjectBase):
+	def __init__(self, name, state, v0,v1,v2):
+		ObjectBase.__init__(self,name,state)
+		self.v0 = v0
+		self.v1 = v1
+		self.v2 = v2
+	def get_copy(self):
+		return Triangle(self.name,self.state,self.v0,self.v1,self.v2)
+	def get_string(self):
+		args = (self.name, self.v0[0],self.v0[1],self.v0[2], self.v1[0],self.v1[1],self.v1[2], self.v2[0],self.v2[1],self.v2[2], "<unknown>")
+		return "<object type=\"triangle\" name=\"%s\" v0x=\"%g\" v0y=\"%g\" v0z=\"%g\" v1x=\"%g\" v1y=\"%g\" v1z=\"%g\" v2x=\"%g\" v2y=\"%g\" v2z=\"%g\"><interface name=\"%s\"/></object>" % args
 class PlyMesh(ObjectBase):
-	def __init__(self, state, path):
-		global num_meshes; name="<obj-%d>"%num_meshes; num_meshes+=1
-		interface = "<unknown>"
-		ObjectBase.__init__(
-			self, state,
-"""<object type="trimesh" name="%s" path="%s"><interface name="%s"/></object>""" % (name,path,interface)
-		)
+	def __init__(self, name, state, path):
+		ObjectBase.__init__(self,name,state)
+		self.path = path
+	def get_copy(self):
+		return PlyMesh(self.name,self.state,self.path)
+	def get_string(self):
+		return """<object type="trimesh" name="%s" path="%s"><interface name="%s"/></object>""" % (self.name,self.path,"<unknown>")
 class Recurse(ObjectBase):
-	def __init__(self, state, name):
-		ObjectBase.__init__(
-			self, state,
-"<recurse name=\"%s\"/>" % name
-		)
-		self.recurse_name = name
-class TriMesh(ObjectBase):
-	def __init__(self, state, verts,indices):
-		global num_rawtris
-		string = ""
-		for i in range(0,len(indices),3):
-			i0=indices[i  ]; v0=verts[i0]
-			i1=indices[i+1]; v1=verts[i1]
-			i2=indices[i+2]; v2=verts[i2]
-			args = (num_rawtris, v0[0],v0[1],v0[2], v1[0],v1[1],v1[2], v2[0],v2[1],v2[2], "<unknown>")
-			string +=\
-"<object type=\"triangle\" name=\"<raw-tri-%d>\" v0x=\"%g\" v0y=\"%g\" v0z=\"%g\" v1x=\"%g\" v1y=\"%g\" v1z=\"%g\" v2x=\"%g\" v2y=\"%g\" v2z=\"%g\"><interface name=\"%s\"/></object>" % args
-			if i+3<len(indices): string+="\n"
-			num_rawtris += 1
-		ObjectBase.__init__(
-			self, state, string
-		)
+	def __init__(self, name, state, recurse_to_defnode_name):
+		ObjectBase.__init__(self,name,state)
+		self.recurse_to_defnode_name = recurse_to_defnode_name
+	def get_copy(self):
+		return Recurse(self.name,self.state,self.recurse_to_defnode_name)
+	def get_string(self):
+		return "<recurse name=\"%s\"/>" % self.recurse_to_defnode_name
 
 class Node(object):
 	def __init__(self, name):
@@ -63,12 +61,16 @@ class Node(object):
 		self.child_recursions = []
 		self.child_nodes = []
 
+	def is_empty(self):
+		if len(self.child_objects   )>0: return False
+		if len(self.child_recursions)>0: return False
+		if len(self.child_nodes     )>0: return False
+		return True
 	def write(self, file, line_prefix):
-		if len(self.child_objects)>0 or len(self.child_nodes)>0:
+		if not self.is_empty():
 			if self.name==None: file.write(line_prefix+"<node>\n")
 			else:               file.write(line_prefix+"<node-defer name=\""+self.name+"\" disable=\"false\">\n")
 
-			#Write node
 			for transform in reversed(self.transforms):
 				transform.write(file, line_prefix+"	");
 			for child_object in self.child_objects + self.child_recursions:
@@ -97,13 +99,17 @@ class Scene(object):
 	def _add_object(self, object):
 		self.objects.append(object)
 	def add_object_sphere(self, radius, zmin,zmax, phimax):
-		self._add_object(Sphere(self.state,radius))
+		self._add_object(Sphere(get_next_objname(),self.state,radius))
 	def add_object_trimesh(self, verts, indices):
-		self._add_object(TriMesh(self.state, verts,indices))
+		for i in range(0,len(indices),3):
+			i0=indices[i  ]; v0=verts[i0]
+			i1=indices[i+1]; v1=verts[i1]
+			i2=indices[i+2]; v2=verts[i2]
+			self._add_object(Triangle( get_next_objname(), self.state, v0,v1,v2 ))
 	def add_object_plymesh(self, path):
-		self._add_object(PlyMesh(self.state,path))
+		self._add_object(PlyMesh(get_next_objname(),self.state,path))
 	def add_recurse(self, name):
-		self._add_object(Recurse(self.state,name))
+		self._add_object(Recurse(get_next_objname(),self.state,name))
 
 	def replace_identity(self):
 		self.state.ctm.clear()
@@ -145,10 +151,10 @@ class Scene(object):
 					objects_remaining = []
 					for object in objects:
 						if len(object.state.ctm._stack) == 0:
-							if hasattr(object,"recurse_name"):
-								if object.recurse_name not in recursed_to:
+							if hasattr(object,"recurse_to_defnode_name"):
+								if object.recurse_to_defnode_name not in recursed_to:
 									node.child_recursions.append(object)
-									recursed_to.add(object.recurse_name)
+									recursed_to.add(object.recurse_to_defnode_name)
 							else:
 								node.child_objects.append(object)
 						else:
@@ -199,44 +205,79 @@ class Scene(object):
 		)
 
 		#Nodes
+
 		#	Separate the normal and the deferred objects
 		normal_objects = []
 		deferred_objects = {}
 		for object in self.objects:
-			if object.state.deferred_name != None:
-				if object.state.deferred_name not in deferred_objects:
-					deferred_objects[object.state.deferred_name] = []
-				deferred_objects[object.state.deferred_name].append(object)
+			if object.state.defnode_name != None:
+				if object.state.defnode_name not in deferred_objects:
+					deferred_objects[object.state.defnode_name] = []
+				deferred_objects[object.state.defnode_name].append(object)
 			else:
 				normal_objects.append(object)
-		#	Unroll the deferred nodes; PBRT's instantiation of deferred nodes post-transforms the
-		#		objects, and this makes storing transforms more difficult.
-		for object_name in deferred_objects.keys():
-			for object in deferred_objects[object_name]:
+
+		#	Remove recursions to empty nodes
+		normal_objects = [object for object in normal_objects if not hasattr(object,"recurse_to_defnode_name") or object.recurse_to_defnode_name in deferred_objects.keys()]
+
+		#	List which instantiations--and therefore post transformations (since PBRT post-
+		#		transforms objects, the motivation for most of this insanity)--every deferred
+		#		object might be transformed by.
+		for defnode_name in deferred_objects.keys():
+			for object in deferred_objects[defnode_name]:
 				object.post_transformers = []
 		for object in normal_objects:
-			if hasattr(object,"recurse_name"):
-				for deferred_obj in deferred_objects[ object.recurse_name ]:
+			if hasattr(object,"recurse_to_defnode_name"):
+				for deferred_obj in deferred_objects[ object.recurse_to_defnode_name ]:
 					deferred_obj.post_transformers.append( object )
-		#		Remove unused deferred nodes
-		for object_name in deferred_objects.keys():
-			deferred_objects[object_name] = [object for object in deferred_objects[object_name] if len(object.post_transformers)>0]
-		for object_name in deferred_objects.keys():
-			if len(deferred_objects[object_name])==0: del deferred_objects[object_name]
+
+		#		Remove unreferenced deferred nodes
+		for defnode_name in deferred_objects.keys():
+			deferred_objects[defnode_name] = [object for object in deferred_objects[defnode_name] if len(object.post_transformers)>0]
+		for defnode_name in deferred_objects.keys():
+			if len(deferred_objects[defnode_name])==0: del deferred_objects[defnode_name]
+
+		#		Concatenate transforms, building new lists of deferred objects, as-necessary.
+		num_lifted_def_objs = 0
+		deferred_objects2 = {}
+		for defnode_name in deferred_objects.keys():
+			for object in deferred_objects[defnode_name]:
+				if len(object.post_transformers) > 1:
+					new_object = object.get_copy()
+					new_object.state.ctm.clear()
+					new_object.state.defnode_name="<def-obj:<%d>>"%num_lifted_def_objs; num_lifted_def_objs+=1
+					for post_transformer in object.post_transformers:
+						post_transformer.state.ctm = post_transformer.state.ctm + object.state.ctm
+						post_transformer.recurse_to_defnode_name = new_object.state.defnode_name
+				else:
+					#TODO: we ought to optimize the object into an actual (non-deferred) child.
+					new_object = object #Just copy it over
+				if new_object.state.defnode_name not in deferred_objects2.keys():
+					deferred_objects2[new_object.state.defnode_name] = []
+				deferred_objects2[new_object.state.defnode_name].append(new_object)
+		deferred_objects = deferred_objects2
+
 		#	Build hierarchies for the deferred objects
 		deferred_nodes = []
 		if len(deferred_objects) > 0:
+			for defnode_name in deferred_objects:
+				defnode = self._build_hierarchy(deferred_objects[defnode_name],defnode_name)
+				if defnode!=None: deferred_nodes.append(defnode)
+
+		#	Build hierarchy for the normal objects
+		normal_node = self._build_hierarchy(normal_objects,None)
+
+		#	Write the deferred objects
+		if len(deferred_nodes) > 0:
 			file.write("\n		<!-- Deferred Objects -->\n")
-			for name in deferred_objects:
-				node = self._build_hierarchy(deferred_objects[name],name)
-				if node!=None: deferred_nodes.append(node)
+			for defnode in deferred_nodes:
+				defnode.write(file,"		")
+
 		#	Write the normal objects
 		file.write("\n		<!-- Main Scene -->\n")
-		normal_node = self._build_hierarchy(normal_objects,None)
-		for node in deferred_nodes:
-			node.write(file,"		")
 		normal_node.write(file,"		")
 
+		#Lights
 		file.write(
 """
 		<!-- Lights -->

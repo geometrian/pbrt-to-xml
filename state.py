@@ -7,7 +7,7 @@ class State(object):
 		self.ctm = ctm.CTM()
 
 		#Note: this is apparently not saved by attrib begin and end
-		self.deferred_name = None
+		self.defnode_name = None
 
 		self._stack = []
 
@@ -23,12 +23,12 @@ class State(object):
 	def get_copy(self):
 		result = State()
 		result.ctm = self.ctm.get_copy()
-		result.deferred_name = self.deferred_name
+		result.defnode_name = self.defnode_name
 		return result
 
 	def begin_defer(self, name):
-		assert self.deferred_name == None
-		self.deferred_name = name
+		assert self.defnode_name == None
+		self.defnode_name = name
 	def end_defer(self):
-		assert self.deferred_name != None
-		self.deferred_name = None
+		assert self.defnode_name != None
+		self.defnode_name = None

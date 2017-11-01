@@ -92,6 +92,11 @@ class CTM(object):
 	def __init__(self):
 		self._stack = []
 
+	def __add__(self, other):
+		result = CTM()
+		result._stack = list(self._stack) + list(other._stack)
+		return result
+
 	def clear(self):
 		self._stack = []
 
