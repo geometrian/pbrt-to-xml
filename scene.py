@@ -59,7 +59,8 @@ class Node(object):
 
 		self.transforms = []
 
-		self.child_objects = [] #Including recursion points
+		self.child_objects = []
+		self.child_recursions = []
 		self.child_nodes = []
 
 	def write(self, file, line_prefix):
@@ -70,15 +71,15 @@ class Node(object):
 			#Write node
 			for transform in reversed(self.transforms):
 				transform.write(file, line_prefix+"	");
-			for child_object in self.child_objects:
+			for child_object in self.child_objects + self.child_recursions:
 				child_object.write(file,line_prefix+"	")
 			for child_node in self.child_nodes:
 				child_node.write(file, line_prefix+"	")
 
 			if self.name==None: file.write(line_prefix+"</node>\n")
 			else:               file.write(line_prefix+"</node-defer>\n")
-		else:
-			file.write(line_prefix+"<node-defer name=\""+name+"\" disable=\"false\"/>\n")
+		elif self.name != None:
+			file.write(line_prefix+"<node-defer name=\""+self.name+"\" disable=\"false\"/>\n")
 
 class Scene(object):
 	def __init__(self, state):
@@ -144,9 +145,9 @@ class Scene(object):
 					objects_remaining = []
 					for object in objects:
 						if len(object.state.ctm._stack) == 0:
-							if (hasattr(object,"recurse_name")):
+							if hasattr(object,"recurse_name"):
 								if object.recurse_name not in recursed_to:
-									node.child_objects.append(object)
+									node.child_recursions.append(object)
 									recursed_to.add(object.recurse_name)
 							else:
 								node.child_objects.append(object)
@@ -208,6 +209,20 @@ class Scene(object):
 				deferred_objects[object.state.deferred_name].append(object)
 			else:
 				normal_objects.append(object)
+		#	Unroll the deferred nodes; PBRT's instantiation of deferred nodes post-transforms the
+		#		objects, and this makes storing transforms more difficult.
+		for object_name in deferred_objects.keys():
+			for object in deferred_objects[object_name]:
+				object.post_transformers = []
+		for object in normal_objects:
+			if hasattr(object,"recurse_name"):
+				for deferred_obj in deferred_objects[ object.recurse_name ]:
+					deferred_obj.post_transformers.append( object )
+		#		Remove unused deferred nodes
+		for object_name in deferred_objects.keys():
+			deferred_objects[object_name] = [object for object in deferred_objects[object_name] if len(object.post_transformers)>0]
+		for object_name in deferred_objects.keys():
+			if len(deferred_objects[object_name])==0: del deferred_objects[object_name]
 		#	Build hierarchies for the deferred objects
 		deferred_nodes = []
 		if len(deferred_objects) > 0:
@@ -215,10 +230,6 @@ class Scene(object):
 			for name in deferred_objects:
 				node = self._build_hierarchy(deferred_objects[name],name)
 				if node!=None: deferred_nodes.append(node)
-			#		Add the empty recursion points too, as they may be referenced.
-			for name in state_module.deferred_names:
-				if name not in deferred_objects:
-					deferred_nodes.append(Node(name))
 		#	Write the normal objects
 		file.write("\n		<!-- Main Scene -->\n")
 		normal_node = self._build_hierarchy(normal_objects,None)

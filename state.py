@@ -1,8 +1,6 @@
 import ctm
 
 
-deferred_names = set()
-
 class State(object):
 	def __init__(self):
 		#"Current transform matrix"
@@ -31,7 +29,6 @@ class State(object):
 	def begin_defer(self, name):
 		assert self.deferred_name == None
 		self.deferred_name = name
-		deferred_names.add(name)
 	def end_defer(self):
 		assert self.deferred_name != None
 		self.deferred_name = None
