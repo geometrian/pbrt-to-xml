@@ -3,14 +3,12 @@ import os, sys
 import time
 import traceback
 
+from math_helpers import rndint
 from scene import *
 from state import *
 import parse_helpers
 import tokenizer
 
-
-def rndint(x):
-	return int(round(x))
 
 def scalarize(params, param_name):
 	param = params[param_name]
@@ -173,15 +171,7 @@ def parse(dir, lines):
 
 	return scene
 
-def main():
-	#path_in = "C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/pbrt-book/book.pbrt"
-	#path_in = "C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/crown/crown.pbrt"
-	#path_in = "C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/killeroos/killeroo-simple.pbrt"
-	#path_in = "C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/vw-van/vw-van.pbrt"
-	#path_in = "C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/landscape/view-0.pbrt"
-	path_in = "C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/white-room/whiteroom-daytime.pbrt"
-
-	#path_out = "scene.xml"#"C:/Users/Ian Mallett/Desktop/scene.xml"
+def convert(path_in):
 	path_out = os.path.splitext(path_in)[0] + ".xml"
 
 	path_in  = os.path.abspath(path_in ).replace("\\","/")
@@ -209,6 +199,26 @@ def main():
 	file.close()
 	t1 = time.time()
 	print("Wrote output file in %f seconds."%(t1-t0))
+
+def main():
+	for path_in in [
+		#"C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/barcelona-pavilion/pavilion-day.pbrt",
+		#"C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/caustic-glass/glass.pbrt",
+		#"C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/crown/crown.pbrt",
+		#"C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/ecosys/ecosys.pbrt",
+		#"C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/killeroos/killeroo-simple.pbrt",
+		#"C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/landscape/view-0.pbrt",
+		#"C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/landscape/view-1.pbrt",
+		#"C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/landscape/view-2.pbrt",
+		#"C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/landscape/view-3.pbrt",
+		#"C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/landscape/view-4.pbrt",
+		#"C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/pbrt-book/book.pbrt",
+		#"C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/sanmiguel/sanmiguel.pbrt",
+		#"C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/villa/villa-daylight.pbrt",
+		"C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/vw-van/vw-van.pbrt",
+		#"C:/dev/Prebuilt Data/objects/pbrt-v3-scenes/white-room/whiteroom-daytime.pbrt",
+	]:
+		convert(path_in)
 
 if __name__ == "__main__": main()
 #if __name__ == "__main__":

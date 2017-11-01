@@ -18,10 +18,7 @@ class Sphere(ObjectBase):
 		interface = "<unknown>"
 		ObjectBase.__init__(
 			self, state,
-"""<object type=\"sphere\" name="%s">
-	<radius value=\"%g\"/>
-	<interface name="%s"/>
-</object>""" % (name,radius,interface)
+"""<object type=\"sphere\" name="%s"><radius value=\"%g\"/><interface name="%s"/></object>""" % (name,radius,interface)
 		)
 		self.radius = radius
 class PlyMesh(ObjectBase):
@@ -30,9 +27,7 @@ class PlyMesh(ObjectBase):
 		interface = "<unknown>"
 		ObjectBase.__init__(
 			self, state,
-"""<object type="trimesh" name="%s" path="%s">
-	<interface name="%s"/>
-</object>""" % (name,path,interface)
+"""<object type="trimesh" name="%s" path="%s"><interface name="%s"/></object>""" % (name,path,interface)
 		)
 class Recurse(ObjectBase):
 	def __init__(self, state, name):
@@ -59,18 +54,31 @@ class TriMesh(ObjectBase):
 		)
 
 class Node(object):
+	def __init__(self, name):
+		self.name = name
+
+		self.transforms = []
+
+		self.child_objects = [] #Including recursion points
+		self.child_nodes = []
+
 	def write(self, file, line_prefix):
-		if not self.is_empty():
+		if len(self.child_objects)>0 or len(self.child_nodes)>0:
+			if self.name==None: file.write(line_prefix+"<node>\n")
+			else:               file.write(line_prefix+"<node-defer name=\""+self.name+"\" disable=\"false\">\n")
 
-			transform_lcl = self._transform.get_copy()
-			if self.parent != None:
-				transform_lcl.erase_prefix(self.parent._transform)
-			transform_lcl.write(file, line_prefix+"	")
+			#Write node
+			for transform in reversed(self.transforms):
+				transform.write(file, line_prefix+"	");
+			for child_object in self.child_objects:
+				child_object.write(file,line_prefix+"	")
+			for child_node in self.child_nodes:
+				child_node.write(file, line_prefix+"	")
 
-			for obj in self._objects:
-				obj.write(file, line_prefix+"	")
-			for child in self._children:
-				child.write(file,line_prefix+"	")
+			if self.name==None: file.write(line_prefix+"</node>\n")
+			else:               file.write(line_prefix+"</node-defer>\n")
+		else:
+			file.write(line_prefix+"<node-defer name=\""+name+"\" disable=\"false\"/>\n")
 
 class Scene(object):
 	def __init__(self, state):
@@ -111,17 +119,9 @@ class Scene(object):
 	def apply_transform(self, transform):
 		self.state.ctm.apply_transform(transform)
 
-	def _write_objects(self, file, line_prefix, objects,deferred_name=None):
+	def _build_hierarchy(self, objects,name):
 		if len(objects) > 0:
-			if deferred_name==None: file.write(line_prefix+"<node>\n")
-			else:                   file.write(line_prefix+"<node-defer name=\""+deferred_name+"\" disable=\"false\">\n")
-
-			class Node:
-				def __init__(self):
-					self.objects = []
-					self.recursions = []
-					self.transforms = []
-			node = Node()
+			node = Node(name)
 			while True:
 				#See if we have any objects with no remaining transforms on them (i.e., they're
 				#	happy in the currently transformed node)
@@ -133,10 +133,10 @@ class Scene(object):
 						break
 
 				if found_empty:
-					#If we do, then write them out, add the remaining objects recursively, and
-					#	we're done.
+					#If we do, then add them to the current node, add the remaining objects
+					#	recursively, and we're done.
 
-					#		Need to make sure we don't recurse twice to the same object, because
+					#		Should make sure we don't recurse twice to the same object, because
 					#			that'd be pointless and wasteful (some PBRT files do this,
 					#			presumably erroneously).
 					recursed_to = set()
@@ -146,13 +146,14 @@ class Scene(object):
 						if len(object.state.ctm._stack) == 0:
 							if (hasattr(object,"recurse_name")):
 								if object.recurse_name not in recursed_to:
-									node.objects.append(object)
+									node.child_objects.append(object)
 									recursed_to.add(object.recurse_name)
 							else:
-								node.objects.append(object)
+								node.child_objects.append(object)
 						else:
 							objects_remaining.append(object)
-					node.recursions.append(objects_remaining)
+					child_node = self._build_hierarchy(objects_remaining,None)
+					if child_node!=None: node.child_nodes.append(child_node)
 					break
 				else:
 					#If we don't, then every object has at least one more transform.  Figure out
@@ -173,21 +174,16 @@ class Scene(object):
 						for object in objects:
 							object.state.ctm.pop_first()
 					else:
-						#	Otherwise, group the objects by their initial transforms and write each
+						#	Otherwise, group the objects by their initial transforms, append each
 						#		group separately and recursively, and we're done.
 						for obj_list in first_transforms.values():
-							node.recursions.append(obj_list)
+							child_node = self._build_hierarchy(obj_list,None)
+							if child_node!=None: node.child_nodes.append(child_node)
 						break
-			#Write node
-			for transform in reversed(node.transforms):
-				transform.write(file, line_prefix+"	");
-			for object in node.objects:
-				object.write(file,line_prefix+"	")
-			for recursion in node.recursions:
-				self._write_objects(file, line_prefix+"	", recursion)
 
-			if deferred_name==None: file.write(line_prefix+"</node>\n")
-			else:                   file.write(line_prefix+"</node-defer>\n")
+			return node
+		else:
+			return None
 	def write_xml(self, file, dir,path_in,path_out):
 		#XML file beginning
 		file.write(
@@ -212,18 +208,23 @@ class Scene(object):
 				deferred_objects[object.state.deferred_name].append(object)
 			else:
 				normal_objects.append(object)
-		#	Write the deferred objects
+		#	Build hierarchies for the deferred objects
+		deferred_nodes = []
 		if len(deferred_objects) > 0:
 			file.write("\n		<!-- Deferred Objects -->\n")
 			for name in deferred_objects:
-				self._write_objects(file,"		",deferred_objects[name],name)
-			#		Yes; the empty recursion points too, as they may be referenced.
+				node = self._build_hierarchy(deferred_objects[name],name)
+				if node!=None: deferred_nodes.append(node)
+			#		Add the empty recursion points too, as they may be referenced.
 			for name in state_module.deferred_names:
 				if name not in deferred_objects:
-					file.write("\n		<node-defer name=\""+name+"\" disable=\"false\"/>")
+					deferred_nodes.append(Node(name))
 		#	Write the normal objects
 		file.write("\n		<!-- Main Scene -->\n")
-		self._write_objects(file,"		",normal_objects)
+		normal_node = self._build_hierarchy(normal_objects,None)
+		for node in deferred_nodes:
+			node.write(file,"		")
+		normal_node.write(file,"		")
 
 		file.write(
 """

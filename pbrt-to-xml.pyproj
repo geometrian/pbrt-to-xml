@@ -21,6 +21,7 @@
   <ItemGroup>
     <Compile Include="ctm.py" />
     <Compile Include="main.py" />
+    <Compile Include="math_helpers.py" />
     <Compile Include="parse_helpers.py" />
     <Compile Include="scene.py" />
     <Compile Include="state.py" />

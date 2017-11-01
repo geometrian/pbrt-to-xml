@@ -1,6 +1,3 @@
-#import numpy as np
-
-
 class TransformBase(object):
 	def __init__(self, string):
 		self.string = string
@@ -62,8 +59,6 @@ class Transform(TransformBase):
 			if i == 4:
 				i = 0
 				j += 1
-		#matrix = np.array(matrix)
-		#matrix = np.linalg.inv(matrix)
 		s = "<transform"
 		for j in range(4):
 			for i in range(4):
