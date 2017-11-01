@@ -237,9 +237,14 @@ class Scene(object):
 		for defnode_name in deferred_objects.keys():
 			if len(deferred_objects[defnode_name])==0: del deferred_objects[defnode_name]
 
-		#		Concatenate transforms, building new lists of deferred objects, as-necessary.
+		#		Fix recursion points
+		#			If there is only one instantiator for a deferred object, keep the recursion
+		#			point and transforms as-is.  If there is more than one, pull the deferred
+		#			object out into a new untransformed node and add new instantiators with pre-
+		#			concatenated transforms.
 		num_lifted_def_objs = 0
-		deferred_objects2 = {}
+		new_deferred_objects = {}
+		new_recursepts = []
 		for defnode_name in deferred_objects.keys():
 			for object in deferred_objects[defnode_name]:
 				if len(object.post_transformers) > 1:
@@ -247,15 +252,20 @@ class Scene(object):
 					new_object.state.ctm.clear()
 					new_object.state.defnode_name="<def-obj:<%d>>"%num_lifted_def_objs; num_lifted_def_objs+=1
 					for post_transformer in object.post_transformers:
-						post_transformer.state.ctm = post_transformer.state.ctm + object.state.ctm
-						post_transformer.recurse_to_defnode_name = new_object.state.defnode_name
+						new_recursept = post_transformer.get_copy()
+						new_recursept.state.ctm = object.state.ctm + post_transformer.state.ctm
+						new_recursept.recurse_to_defnode_name = new_object.state.defnode_name
+						new_recursepts.append(new_recursept)
 				else:
-					#TODO: we ought to optimize the object into an actual (non-deferred) child.
-					new_object = object #Just copy it over
-				if new_object.state.defnode_name not in deferred_objects2.keys():
-					deferred_objects2[new_object.state.defnode_name] = []
-				deferred_objects2[new_object.state.defnode_name].append(new_object)
-		deferred_objects = deferred_objects2
+					#Just copy it over.  TODO: we ought to optimize the object into an actual (non-
+					#	deferred) child.
+					new_object = object
+					new_recursepts.append(object.post_transformers[0])
+				if new_object.state.defnode_name not in new_deferred_objects.keys():
+					new_deferred_objects[new_object.state.defnode_name] = []
+				new_deferred_objects[new_object.state.defnode_name].append(new_object)
+		normal_objects = [object for object in normal_objects if not hasattr(object,"recurse_to_defnode_name")] + new_recursepts
+		deferred_objects = new_deferred_objects
 
 		#	Build hierarchies for the deferred objects
 		deferred_nodes = []
