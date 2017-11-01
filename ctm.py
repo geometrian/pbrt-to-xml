@@ -68,7 +68,7 @@ class Transform(TransformBase):
 		TransformBase.__init__(self,s)
 		self.transform = tuple(transform2)
 	def is_iden(self):
-		return self.transform == ( 1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1 )
+		return self._fits(( 1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1 ))
 	def _fits(self, pattern):
 		for i in range(16):
 			if pattern[i]==None: continue

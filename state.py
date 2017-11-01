@@ -24,6 +24,8 @@ class State(object):
 		result = State()
 		result.ctm = self.ctm.get_copy()
 		result.defnode_name = self.defnode_name
+		for ctm in self._stack:
+			result._stack.append(ctm.get_copy())
 		return result
 
 	def begin_defer(self, name):
